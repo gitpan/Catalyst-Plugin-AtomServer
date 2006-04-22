@@ -1,9 +1,9 @@
-# $Id: AtomServer.pm 1071 2006-01-04 04:57:44Z btrott $
+# $Id: AtomServer.pm 1222 2006-04-22 04:23:19Z btrott $
 
 package Catalyst::Plugin::AtomServer;
 use strict;
 
-our $VERSION = '0.01';
+our $VERSION = '0.03';
 
 ## todo:
 ## dispatching based on request method?

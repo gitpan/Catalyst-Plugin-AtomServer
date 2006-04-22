@@ -1,27 +1,41 @@
-# $Id: 01-client.t 1070 2006-01-04 04:37:16Z btrott $
+# $Id: 01-client.t 1077 2006-01-04 06:59:42Z btrott $
 
 use strict;
 use FindBin qw( $Bin );
 use lib "$Bin/lib";
 
-use Test::More tests => 10;
+use Test::More tests => 18;
 use TestApp;
 use Catalyst::Test 'TestApp';
 use XML::Atom::Client;
 use XML::Atom::Entry;
 use XML::Atom::Feed;
 
+sub req_auth_err {
+    my($req_sub, $client_sub, $code) = @_;
+    my $req = $req_sub->();
+    my $client = $client_sub->();
+    $client->munge_request($req);
+    my $res = request($req);
+    like $res->content, qr/Unauthenticated/;
+    ok $res->header('WWW-Authenticate');
+    like $res->header('WWW-Authenticate'), qr/Basic/;
+    like $res->header('WWW-Authenticate'), qr/WSSE/;
+    is $res->code, $code;
+}
+
 sub req_ok {
     my($req_sub, $client_sub, $regex) = @_;
     my $req = $req_sub->();
     my $client = $client_sub->();
     $client->munge_request($req);
-    like get($req), $regex;
+    my $res = request($req);
+    like $res->content, qr/Blog/;
 }
 
-req_ok \&req_get, \&client_noauth, qr/Unauthenticated/;
-req_ok \&req_get, \&client_badauth, qr/Unauthenticated/;
-req_ok \&req_get, \&client_good, qr/Blog/;
+req_auth_err \&req_get, \&client_noauth, 401;
+req_auth_err \&req_get, \&client_badauth, 403;
+req_ok \&req_get, \&client_good;
 
 my($req, $res, $xml);
 

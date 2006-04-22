@@ -1,7 +1,8 @@
-# $Id: Atom.pm 1073 2006-01-04 05:08:28Z btrott $
+# $Id: Atom.pm 1222 2006-04-22 04:23:19Z btrott $
 
 package Catalyst::Plugin::Authentication::Credential::Atom;
 use strict;
+use base qw( Catalyst::Plugin::Authentication::Credential::Password );
 
 use MIME::Base64 qw( encode_base64 decode_base64 );
 use Digest::SHA1 qw( sha1 );
@@ -13,14 +14,26 @@ use constant NS_WSU => 'http://schemas.xmlsoap.org/ws/2002/07/utility';
 sub login_atom {
     my $c = shift;
     my($username, $cred) = $c->_extract_credentials;
-    return unless $username;
-
-    my $user = $c->get_user($username) or return;
-    if ($c->_validate_credentials($user, $cred)) {
-        $c->set_authenticated($user);
-        return 1;
+    unless ($username) {
+        return $c->_atom_auth_error(401);
     }
-    return;
+
+    if (my $user = $c->get_user($username)) {
+        if ($c->_validate_credentials($user, $cred)) {
+            $c->set_authenticated($user);
+            return $username;
+        }
+    }
+    return $c->_atom_auth_error(403);
+}
+
+sub _atom_auth_error {
+    my $c = shift;
+    my($code) = @_;
+    $c->response->status($code);
+    $c->response->header('WWW-Authenticate',
+        'WSSE profile="UsernameToken", Basic');
+    return 0;
 }
 
 sub _extract_credentials {
@@ -61,7 +74,7 @@ sub _validate_credentials {
     my $c = shift;
     my($user, $cred) = @_;
     if ($cred->{password}) {
-        return $user->password eq $cred->{password};
+        return $c->_check_password($user, $cred->{password})
     } elsif ($cred->{PasswordDigest}) {
         my $pass = $user->password;
         my $expected = encode_base64(sha1(
@@ -87,7 +100,7 @@ Catalyst::Plugin::Authentication::Credential::Atom - Authentication for Atom
 
     sub begin : Private {
         my($self, $c) = @_;
-        $c->login_atom or die "Unauthenticated";
+        my $username = $c->login_atom or die "Unauthenticated";
     }
 
 =head1 DESCRIPTION
