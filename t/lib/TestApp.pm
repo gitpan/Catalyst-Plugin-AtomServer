@@ -1,4 +1,4 @@
-# $Id: TestApp.pm 1070 2006-01-04 04:37:16Z btrott $
+# $Id: TestApp.pm 1257 2006-06-27 17:07:05Z btrott $
 
 package TestApp;
 use strict;
@@ -30,6 +30,7 @@ __PACKAGE__->setup;
 
 sub default : Private {
     my($self, $c) = @_;
+    $c->request->is_atom(1);
 
     my $method = $c->request->method;
     if ($method eq 'GET') {

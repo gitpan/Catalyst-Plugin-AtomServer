@@ -1,9 +1,9 @@
-# $Id: AtomServer.pm 1222 2006-04-22 04:23:19Z btrott $
+# $Id: AtomServer.pm 1257 2006-06-27 17:07:05Z btrott $
 
 package Catalyst::Plugin::AtomServer;
 use strict;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 ## todo:
 ## dispatching based on request method?
@@ -14,7 +14,8 @@ use XML::Atom;
 
 {
     package Catalyst::Request;
-    __PACKAGE__->mk_accessors(qw( url_parameters is_soap _body_parsed ));
+    __PACKAGE__->mk_accessors(qw( url_parameters is_atom is_soap
+                                  _body_parsed ));
 
     sub body_parsed {
         my $req = shift;
@@ -58,6 +59,9 @@ sub prepare {
 
 sub finalize {
     my $c = shift;
+    unless ($c->request->is_atom) {
+        return $c->NEXT::finalize(@_);
+    }
     my $res = $c->response;
     if ($c->request->is_soap && (my $body = $res->body)) {
         $body =~ s/^(<\?xml.*?\?>)//;
@@ -74,6 +78,9 @@ SOAP
 
 sub finalize_error {
     my $c = shift;
+    unless ($c->request->is_atom) {
+        return $c->NEXT::finalize_error(@_);
+    }
     if (defined(my $err = $c->error->[0])) {
         my $res = $c->response;
         my $status = $res->status;
@@ -140,6 +147,13 @@ I<Catalyst::Plugin::AtomServer> extends the I<Catalyst::Request> object to
 add a couple of useful methods:
 
 =over 4
+
+=item * $req->is_atom
+
+Once you know that a particular request is an Atom request, your Catalyst
+handler should set I<is_atom> to C<1>, like so:
+
+    $c->request->is_atom(1);
 
 =item * $req->url_parameters
 
@@ -214,6 +228,7 @@ and views.
 
     sub default : Private {
         my($self, $c) = @_;
+        $c->request->is_atom(1);
         my $method = $c->request->method;
         if ($method eq 'GET') {
             $c->forward('get_entries');
